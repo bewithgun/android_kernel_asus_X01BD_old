@@ -4011,6 +4011,11 @@ void jeita_rule(void)
 			else;
 
 	}
+	if(bat_capacity == 100){
+		demo_stop_charging_flag = 1;
+	} else {
+		demo_stop_charging_flag = 0;
+	}
 
 	printk("%s: soc = %d, demo_flag = %d, stop_flag = %d \n",
 		__func__, bat_capacity, demo_app_property_flag, demo_stop_charging_flag);
