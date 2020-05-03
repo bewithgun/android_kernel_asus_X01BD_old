@@ -54,8 +54,8 @@ static inline unsigned int get_freq_target(struct cs_dbs_tuners *cs_tuners,
  * sampling_down_factor, we check, if current idle time is more than 80%
  * (default), then we try to decrease frequency
  *
- * Any frequency increase takes it to the maximum frequency. Frequency reduction
- * happens at minimum steps of 5% (default) of maximum frequency
+ * Frequency updates happen at minimum steps of 5% (default) of maximum
+ * frequency
  */
 static void cs_check_cpu(int cpu, unsigned int load)
 {
@@ -70,6 +70,16 @@ static void cs_check_cpu(int cpu, unsigned int load)
 	 */
 	if (cs_tuners->freq_step == 0)
 		return;
+
+	if (dbs_info->cdbs.deferred_periods < UINT_MAX) {
+		unsigned int freq_target = dbs_info->cdbs.deferred_periods *
+				get_freq_target(cs_tuners, policy);
+		if (dbs_info->requested_freq > freq_target)
+			dbs_info->requested_freq -= freq_target;
+		else
+			dbs_info->requested_freq = policy->min;
+		dbs_info->cdbs.deferred_periods = UINT_MAX;
+	}
 
 	/* Check for frequency increase */
 	if (load > cs_tuners->up_threshold) {
@@ -185,7 +195,7 @@ static ssize_t store_sampling_rate(struct dbs_data *dbs_data, const char *buf,
 	if (ret != 1)
 		return -EINVAL;
 
-	cs_tuners->sampling_rate = max(input, dbs_data->min_sampling_rate);
+	cs_tuners->sampling_rate = input;
 	return count;
 }
 
@@ -342,8 +352,6 @@ static int cs_init(struct dbs_data *dbs_data, bool notify)
 	tuners->freq_step = DEF_FREQUENCY_STEP;
 
 	dbs_data->tuners = tuners;
-	dbs_data->min_sampling_rate = MIN_SAMPLING_RATE_RATIO *
-		jiffies_to_usecs(10);
 
 	if (notify)
 		cpufreq_register_notifier(&cs_cpufreq_notifier_block,
